@@ -14,11 +14,6 @@ Requirements:
 - Include user controls to adjust time scale with a range of 1 second/second to 1000 days/second, ensure planet and moon movement speeds.
 - Include Jump To buttons for the sun and all planets.
 
-# Setup
-1. If package.json does not exist use npm init with default values.
-2. Ensure packages are installed: @ripl/3d, @ripl/web, @ripl/webgpu.
-3. 
-
 # Steps
 1. Set up a 3D scene using WebGPU.
 2. Create a luminous Sun object at the scene center with light emission.
