@@ -186,7 +186,7 @@ const App = {
     panel.style.display = 'block';
   },
 
-  hidePanel() { document.getElementById('infoPanel').style.display = 'none'; }
+  hidePanel() { document.getElementById('infoPanel').style.display = 'none'; },
 
   /* ---------------- UI builders ---------------- */
 
