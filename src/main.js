@@ -11,10 +11,28 @@ import { addVectors, computeOrbitPosition, computeSpinRotation } from './orbit.j
 let simDays = 0;
 let lastTimestampMs = 0;
 
+/**
+ * Shows the boot-failure overlay. Ignored once the app has booted, so a
+ * late, non-fatal error can never cover a working simulation.
+ */
 function failStartup() {
+    if (window.__solarSystemBooted) {
+        return;
+    }
     const failure = document.getElementById('boot-failure');
-    failure.hidden = false;
+    if (failure) {
+        failure.hidden = false;
+    }
 }
+
+// Watch for startup failures from the very first line, before the WebGPU
+// negotiation below starts.
+window.addEventListener('error', failStartup);
+const bootTimer = window.setTimeout(() => {
+    if (!window.__solarSystemBooted) {
+        failStartup();
+    }
+}, 4000);
 
 const app = await buildSolarSystem('.mount-element');
 const { context, camera, bodies, saturnRing, backend } = app;
@@ -68,13 +86,6 @@ mountElement.addEventListener('pointerup', (event) => {
         ui.markJumpActive(closestHit.body.id);
     }
 });
-
-window.addEventListener('error', failStartup);
-const bootTimer = window.setTimeout(() => {
-    if (!window.__solarSystemBooted) {
-        failStartup();
-    }
-}, 4000);
 
 function frame(nowMs) {
     const deltaSeconds = Math.min(0.1, (nowMs - lastTimestampMs) / 1000);
@@ -133,3 +144,8 @@ window.requestAnimationFrame((firstMs) => {
 
 window.__solarSystemBooted = true;
 window.clearTimeout(bootTimer);
+window.removeEventListener('error', failStartup);
+const bootFailureElement = document.getElementById('boot-failure');
+if (bootFailureElement) {
+    bootFailureElement.hidden = true;
+}
