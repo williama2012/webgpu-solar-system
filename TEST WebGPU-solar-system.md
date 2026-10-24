@@ -27,8 +27,13 @@ Requirements:
 Provide a fully functional and HTML page with css and javascript in seperate files, demonstrating the described 3D solar system. Include comments on all functions with description and function signature. Write functions, variables, ect. in human readable names (no single letter variables) and format (don't try to minify). The javascript *can* be broken into multiple modules based on function purpose to reduce a single large file for developement. Write individual files as soon as they are ready to avoid losing information if this chat context gets compressed.
 
 # Notes
+- Use @ripl/3d for WebGPU support, the @ripl/3d, @ripl/web and @ripl/webgpu packages are already installed in the project folder.
+- Ripl3d references: https://github.com/andrewcourtice/ripl, https://www.ripl.run/docs/api/@ripl/webgpu/.
+- You may include more packages if needed for the project.
 - Realistic scale in terms of distance may need to be compressed for better visualization.
 - Ensure the simulation runs smoothly on modern browsers without additional plugins.
 
 # Example
 // No direct code example due to complexity, but ensure the inclusion of [Scene Setup], [Sun Object], [Planet and Satellite Meshes], [Animation Loop], and [Camera Controls] in your code.
+
+
