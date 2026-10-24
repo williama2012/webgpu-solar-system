@@ -32,7 +32,7 @@ Requirements:
 Provide a fully functional HTML page with css and javascript in seperate files, demonstrating the described 3D solar system. Include comments on all functions with description and function signature. Write functions, variables, ect. in human readable names (no single letter variables) and format (don't try to minify). The javascript *can* be broken into multiple modules based on function purpose to reduce a single large file for developement. Write individual files as soon as they are ready to avoid losing information if this chat context gets compressed.
 
 # Notes
-- Use @ripl/3d for WebGPU support.
+- Use @ripl/webgpu for WebGPU support.
 - The packages @ripl/3d, @ripl/web and @ripl/webgpu are already installed in the project folder.
 - Ripl3d references: https://github.com/andrewcourtice/ripl, https://www.ripl.run/docs/api/@ripl/webgpu/.
 - Write individual files as soon as they are ready to avoid losing information if this chat context gets compressed.
