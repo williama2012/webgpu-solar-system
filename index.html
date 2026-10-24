@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WebGPU Solar System</title>
+  <link rel="stylesheet" href="src/style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "@ripl/webgpu": "/node_modules/@ripl/webgpu/dist/index.js",
+      "@ripl/3d": "/node_modules/@ripl/3d/dist/index.js",
+      "@ripl/web": "/node_modules/@ripl/web/dist/index.js",
+      "@ripl/canvas": "/node_modules/@ripl/canvas/dist/index.js",
+      "@ripl/core": "/node_modules/@ripl/core/dist/index.js",
+      "@ripl/dom": "/node_modules/@ripl/dom/dist/index.js",
+      "@ripl/utilities": "/node_modules/@ripl/utilities/dist/index.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="mount-element" aria-label="Solar system viewport"></div>
+  <div id="label-layer"></div>
+
+  <header id="hud-title">
+    <h1>WebGPU Solar System</h1>
+    <p id="render-note">Negotiating GPU adapter…</p>
+  </header>
+
+  <div id="time-panel">
+    <label for="time-scale">Time scale</label>
+    <input id="time-scale" type="range" min="0" max="100" value="68" />
+    <span id="time-readout">…</span>
+    <button id="pause-button" type="button">Pause</button>
+    <span id="sim-clock">J2000 + 0 yr 0 d</span>
+  </div>
+
+  <nav id="jump-bar" aria-label="Jump to a world">
+    <h2>Jump to</h2>
+    <div id="jump-buttons"></div>
+  </nav>
+
+  <aside id="factoid" hidden>
+    <button id="factoid-close" type="button" aria-label="Close details">×</button>
+    <h2 id="factoid-title"></h2>
+    <dl id="factoid-details"></dl>
+    <p id="factoid-fact"></p>
+  </aside>
+
+  <p id="hint">Drag to orbit · Scroll to zoom · Shift/middle-drag to pan · Click a world for details</p>
+  <p id="boot-failure" hidden>
+    This page could not start. Use a recent Chrome/Edge (113+), or Firefox Nightly with WebGPU enabled.
+  </p>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
