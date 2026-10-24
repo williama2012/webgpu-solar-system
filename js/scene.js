@@ -7,6 +7,7 @@
  * scale; moon radii at 0.55x and moon orbit radii compressed onto a gentle power law so
  * everything stays on screen while preserving relative structure.
  */
+const _this = this;
 
 const Scene = {
   AU_UNITS: 20,               /* scene units per astronomical unit          */
@@ -52,28 +53,34 @@ const Scene = {
       vertexCount: meshData.positions.length / 3,
       indexCount: meshData.indices.length
     };
+    
+    
 
     for (const pipelineName of Object.keys(ShaderSource)) {
       const shader = ShaderSource[pipelineName];
+      if (!shader.layoutSpec) continue; // shared source fragments (e.g. noisePreamble) are not pipelines
+      const device = this.device;
+      console.log('device', typeof this.device.createBindGroupLayoutEntry);
+
       const bindGroupLayouts = shader.layoutSpec.map((groupSpec, groupIndex) =>
         this.device.createBindGroupLayout({
           entries: groupSpec.map((bindingSpec, bindingIndex) => {
             if (bindingSpec.uniform) {
-              return this.device.createBindGroupLayoutEntry({ binding: bindingIndex, visibility: GPUConstantVisibility.FRAGMENT, buffer: { type: 'uniform' } });
+              return { binding: bindingIndex, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } };
             }
             if (bindingSpec.sampler) {
-              return this.device.createBindGroupLayoutEntry({ binding: bindingIndex, visibility: GPUConstantVisibility.FRAGMENT, sampler: { type: 'filtering' } });
+              return { binding: bindingIndex, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } };
             }
-            return this.device.createBindGroupLayoutEntry({ binding: bindingIndex, visibility: GPUConstantVisibility.FRAGMENT, texture: { sampleType: 'float' } });
+            return { binding: bindingIndex, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } };
           })
         }));
 
       const pipelineSpec = shader.pipeline || {};
-      this.pipelines[pipelineName] = this.device.createPipeline({
-        layout: this.device.createRenderPipelineLayout({ bindGroupLayouts }),
+      this.pipelines[pipelineName] = this.device.createRenderPipeline({
+        layout: this.device.createPipelineLayout({ bindGroupLayouts }),
         vertex: {
           module: this.device.createShaderModule({ code: shader.vertex }),
-          buffers: [pipelineName === 'line' || pipelineName === 'star' ? [{ arrayStride: 8, attributes: [{ format: 'float32x2', offset: 0 }] }]
+          buffers: pipelineName === 'line' || pipelineName === 'star' ? [{ arrayStride: 8, attributes: [{ format: 'float32x2', offset: 0 }] }]
             : [{ arrayStride: 32, attributes: [{ format: 'float32x3', offset: 0 }, { format: 'float32x3', offset: 12 }, { format: 'float32x2', offset: 24 }] }],
           entryPoint: ''
         },
