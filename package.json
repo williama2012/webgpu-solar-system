@@ -25,5 +25,8 @@
     "@ripl/3d": "^1.4.0",
     "@ripl/web": "^1.4.0",
     "@ripl/webgpu": "^1.4.0"
+  },
+  "devDependencies": {
+    "eslint": "^10.13.0"
   }
 }
