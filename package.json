@@ -1,0 +1,29 @@
+{
+  "name": "webgpu-solar-system",
+  "version": "1.0.0",
+  "description": "",
+  "keywords": [
+    "webgpu",
+    "solar-system"
+  ],
+  "homepage": "https://github.com/williama2012/webgpu-solar-system#readme",
+  "bugs": {
+    "url": "https://github.com/williama2012/webgpu-solar-system/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/williama2012/webgpu-solar-system.git"
+  },
+  "license": "ISC",
+  "author": "William and Friend",
+  "type": "commonjs",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@ripl/3d": "^1.4.0",
+    "@ripl/web": "^1.4.0",
+    "@ripl/webgpu": "^1.4.0"
+  }
+}
