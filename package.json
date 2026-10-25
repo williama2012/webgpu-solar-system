@@ -20,6 +20,7 @@
     "start": "npx --yes http-server . -p 8080 -c-1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "eslint": "^10.13.0"
   }
 }
