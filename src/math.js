@@ -116,9 +116,11 @@ export function createLookAtViewMatrix(eyePosition, targetPosition, upVector) {
   out[2] = forward.x;
   out[6] = forward.y;
   out[10] = forward.z;
-  out[3] = -dotVectors3(rightVector, eyePosition);
-  out[7] = -dotVectors3(upResult, eyePosition);
-  out[11] = -dotVectors3(forward, eyePosition);
+  // Column-major: the homogeneous translation row lives in column 3 (indices
+  // 12..14), not the w-row (3, 7, 11) - that is where it used to leak.
+  out[12] = -dotVectors3(rightVector, eyePosition);
+  out[13] = -dotVectors3(upResult, eyePosition);
+  out[14] = -dotVectors3(forward, eyePosition);
   out[15] = 1;
   return out;
 }
