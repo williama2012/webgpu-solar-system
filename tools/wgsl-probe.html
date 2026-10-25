@@ -1,5 +1,5 @@
 <!doctype html><html><head><meta charset="utf-8"></head><body>
-<p>WGSL leading-newline probe v3 (built from real src bytes). Wait for <code>done:</code> in the box below.</p>
+<p>WGSL leading-newline probe v4 (live extraction). Wait for <code>done:</code> in the box below.</p>
 <pre id="out">running…</pre>
 <script type="module">
 // Five probes: baseline sanity / shared preamble CRLF-vs-LF / full stars shader CRLF-vs-LF.
@@ -38,9 +38,26 @@ else {
     result += await probe('p9_S_LEADING_NL', sWithLead);
     result += await probe('p10_minimal_leadNL', '\nstruct A { x: vec3<f32>; y: f32; };');
     result += await probe('p11_minimal_plain', 'struct A { x: vec3<f32>; y: f32; };');
-  }
+
+    // v4 LIVE: fetch the served renderer.js; test the EXACT strings createPipelines uses.
+    const hexcp = (ch) => '\\u' + ch.codePointAt(0).toString(16).padStart(4, '0');
+    const live = await (await fetch('/src/renderer.js', { cache: 'no-store' })).text();
+    result += '\n--- v4 LIVE from served /src/renderer.js ---\n';
+    result += 'len=' + live.length + ' has_GLOBAL_UNIFORMS_WGSL=' + live.includes('GLOBAL_UNIFORMS_WGSL') + '\n';
+    for (const m of live.matchAll(/const (SHADER_\w+) =`/g)) {
+      const name = m[1];
+      const start = m.index + m[0].length;
+      const end = live.indexOf('`', start);
+      const body = live.slice(start, end);
+      const lines = body.split('\n');
+      const l2 = (lines[1] || '').slice(48, 63);
+      result += name + ' len=' + body.length + ' firstLine=' + JSON.stringify(lines[0]) + '\n';
+      result += '   l2[48..63] codepoints: ' + l2.split('').map(hexcp).join(' ') + '\n';
+      result += '   non-ascii chars: ' + [...body].filter(c => c.codePointAt(0) > 127).length + '\n';
+      result += await probe('v4_' + name, body);
+    }  }
 }
 document.getElementById('out').textContent = 'done:\n' + result;
 try { await fetch('/__result', { method: 'POST', body: document.getElementById('out').textContent }); } catch (e) {}
 
-</script></body></html>
+</script></body></html
