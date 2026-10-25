@@ -504,36 +504,41 @@ export function generateAllCanvases(bodies) {
 /**
  * Upload a painted canvas as an sRGB (or linear) GPUTexture.
  *
- * API sequence per plan §14 (verified against the gpuweb external-import
- * reference before this module was written): the device MUST have been
- * requested with `requiredFeatures: ['external-import-capability']`
- * (handled in renderer init, which checks
- * `adapter.hasFeature('external-import-capability')`). If the direct
- * canvas import throws, retry with a `createImageBitmap` source (§14
- * committed fallback) before giving up.
+ * Core-spec upload only (§14 API-drift pre-mortem): the image-import surface
+ * is not present on every engine, so this uses the universally available path
+ * — read the pixels back through the canvas 2d context, flip the rows (WebGPU
+ * texture origin is bottom-left), and queue.writeTexture them into a
+ * bgra8unorm(-srgb) texture at 4 bytes/pixel.
  *
- * @param {GPUDevice} device GPU device (feature already requested).
+ * @param {GPUDevice} device GPU device.
  * @param {HTMLCanvasElement} canvas Painted canvas (any size; texture matches it).
  * @param {boolean} [isSrgb=true] Whether the data is sRGB-encoded.
  * @returns {Promise<GPUTexture>} Mip-less 2D TEXTURE_BINDING|COPY_DST texture
  *   in bgra8unorm-srgb (or bgra8unorm when isSrgb is false).
  */
 export async function uploadCanvasAsTexture(device, canvas, isSrgb = true) {
-  const descriptor = {
+  const width = canvas.width;
+  const height = canvas.height;
+  const pixels = canvas.getContext('2d').getImageData(0, 0, width, height);
+  // ImageData row 0 is the top edge; WebGPU texture v=0 is the bottom — flip.
+  const flipped = new Uint8Array(pixels.data.length);
+  for (let y = 0; y < height; y += 1) {
+    flipped.set(
+      pixels.data.subarray(y * width * 4, (y + 1) * width * 4),
+      (height - 1 - y) * width * 4,
+    );
+  }
+  const texture = device.createTexture({
     format: isSrgb ? 'bgra8unorm-srgb' : 'bgra8unorm',
     dimension: '2d',
-    width: canvas.width,
-    height: canvas.height,
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
-  };
-  let source = canvas;
-  try {
-    const imported = device.importExternalImage(source, { flipYFromGreen: true });
-    return device.importCanvasAsTexture(imported, descriptor);
-  } catch {
-    // §14 fallback: some implementations only accept a bitmap source.
-    source = await createImageBitmap(canvas);
-    const imported = device.importExternalImage(source, { flipYFromGreen: true });
-    return device.importCanvasAsTexture(imported, descriptor);
-  }
+    size: { width, height },
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+  });
+  device.queue.writeTexture(
+    { texture, mipmapLevel: 0, origin: [0, 0, 0] },
+    flipped,
+    { bytesPerRow: width * 4, rowsPerImage: height },
+    { width, height, depthOrArrayLayers: 1 },
+  );
+  return texture;
 }
