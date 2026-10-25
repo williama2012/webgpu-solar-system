@@ -17,7 +17,8 @@
   "scripts": {
     "lint": "eslint src",
     "lint:fix": "eslint --fix src",
-    "start": "npx --yes http-server . -p 8080 -c-1"
+    "start": "npx --yes http-server . -p 8080 -c-1",
+    "test": "node tools/smoke-test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
