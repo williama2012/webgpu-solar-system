@@ -28,8 +28,10 @@ Provide a fully functional HTML page with css and javascript in seperate files, 
 
 # Notes
 - Write individual files to disk as soon as they are ready to avoid losing information if this chat context gets compressed.
+- Use eslint for basic validations.
 - You may include more npm packages if needed for the project.
 - Realistic scale in terms of distance may need to be compressed for better visualization.
+- project.json has already been created (eslint, @eslint/js installed).
 
 # Example
 // No direct code example due to complexity, but ensure the inclusion of [Scene Setup], [Sun Object], [Planet and Satellite Meshes], [Animation Loop], and [Camera Controls] in your code.
