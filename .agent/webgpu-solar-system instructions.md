@@ -1,4 +1,4 @@
-Create a complete WebGPU native code that renders a photo realistic 3D solar system simulation including the Sun, all eight planets, and their major satellites. The simulation should visually represent orbital motion, gravity effects, planetary sizes relative to each other, and realistic distances where possible. Use modern web technologies such as WebGPU to achieve smooth and accurate 3D animation.
+Create a complete HTML Javascript WebGPU page that renders a photo realistic 3D solar system simulation including the Sun, all eight planets, and their major satellites. The simulation should visually represent orbital motion, gravity effects, planetary sizes relative to each other, and realistic distances where possible. Use modern web technologies such as WebGPU to achieve smooth and accurate 3D animation.
 
 Requirements:
 - Include the Sun at the center with appropriate scale and glowing effect and light source and shadows.
@@ -27,13 +27,15 @@ Requirements:
 Provide a fully functional HTML page with css and javascript in seperate files, demonstrating the described 3D solar system. Include comments on all functions with description and function signature. Write functions, variables, ect. in human readable names (no single letter variables) and format (don't try to minify). The javascript *can* be broken into multiple modules based on function purpose to reduce a single large file for developement. Write individual files as soon as they are ready to avoid losing information if this chat context gets compressed.
 
 # Notes
-- Use https://github.com/samdauwe/webgpu-native-examples for base WebGPU examples.
 - Write individual files to disk as soon as they are ready to avoid losing information if this chat context gets compressed.
-- Use eslint for basic validations.
 - You may include more npm packages if needed for the project.
 - Realistic scale in terms of distance may need to be compressed for better visualization.
-- Ensure the simulation runs smoothly on modern browsers without additional plugins.
 
 # Example
 // No direct code example due to complexity, but ensure the inclusion of [Scene Setup], [Sun Object], [Planet and Satellite Meshes], [Animation Loop], and [Camera Controls] in your code.
+
+# References
+- WebGPU examples: https://github.com/webgpu/webgpu-samples
 - WebGPU examples: https://github.com/samdauwe/webgpu-native-examples
+- https://dawn.googlesource.com/dawn
+- https://github.com/schellingb/wajic
