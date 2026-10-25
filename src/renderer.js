@@ -15,6 +15,13 @@
 
 import { uploadCanvasAsTexture } from './textures.js';
 
+// Visibility bitmasks for bind-group layout entries (WebIDL enum GPUShaderVisibility):
+// vertex = 1, fragment = 2, compute = 4. Numeric values are used directly rather than
+// the browser's global `GPUShaderVisibility` object, which is not present in all builds.
+const VISIBILITY_VERTEX = 1;
+const VISIBILITY_FRAGMENT = 2;
+const VISIBILITY_VERTEX_FRAGMENT = VISIBILITY_VERTEX | VISIBILITY_FRAGMENT;
+
 /* ============================ WGSL sources =========================== */
 
 /** Shared uniform layout preamble (JS writes a 128-float buffer; see renderFrame). */
@@ -299,12 +306,8 @@ export class SolarSystemRenderer {
       if (onFatalError) onFatalError(message);
       throw new Error(message);
     }
-    // §14: canvas texture import needs 'external-import-capability' when available.
-    const externalImportFeature = 'external-import-capability';
-    const hasExternalImport = typeof adapter.hasFeature === 'function' && adapter.hasFeature(externalImportFeature);
-    this.device = await adapter.requestDevice({
-      requiredFeatures: hasExternalImport ? [externalImportFeature] : [],
-    });
+    // No required features — the upload path is core-spec only (see textures.js).
+    this.device = await adapter.requestDevice();
 
     this._fatalErrorReported = false;
     this.device.lost.then((reason) => {
@@ -320,11 +323,34 @@ export class SolarSystemRenderer {
     };
 
     const context = this.canvas.getContext('webgpu');
-    let presentFormat = null;
-    for (const candidate of ['bgra8unorm', 'rgba8unorm']) {
-      if (context.preferredFormats.includes(candidate)) { presentFormat = candidate; break; }
+    if (!context) {
+      const message = 'Could not create a WebGPU canvas context — please open in the latest Chrome or Edge.';
+      console.error(message);
+      if (onFatalError) onFatalError(message);
+      throw new Error(message);
     }
-    if (!presentFormat) throw new Error('Canvas has no WebGPU present format.');
+
+    // Present-format discovery depends on the engine's spec level: newer engines
+    // expose getPreferredCanvasFormat() (on the GPU object and/or adapter) while
+    // older ones expose GPUCanvasContext.preferredFormats — probe the query first.
+    let presentFormat = null;
+    for (const owner of [navigator.gpu, adapter]) {
+      if (!owner || typeof owner.getPreferredCanvasFormat !== 'function') continue;
+      const picked = owner.getPreferredCanvasFormat();
+      presentFormat = Array.isArray(picked) ? picked[0] : picked;
+      break;
+    }
+    if (!presentFormat && Array.isArray(context.preferredFormats)) {
+      for (const candidate of ['bgra8unorm', 'rgba8unorm']) {
+        if (context.preferredFormats.includes(candidate)) { presentFormat = candidate; break; }
+      }
+    }
+    if (!presentFormat) {
+      const message = 'No compatible WebGPU canvas format found — please open in the latest Chrome or Edge.';
+      console.error(message);
+      if (onFatalError) onFatalError(message);
+      throw new Error(message);
+    }
     this._presentFormat = presentFormat;
     this._canvasContext = context;
     this._canvasContext.configure({ device: this.device, format: presentFormat });
@@ -365,12 +391,12 @@ export class SolarSystemRenderer {
     // Corona quad vertex stage reads its own tiny mat4 (§7: own tiny buffer allowed).
     this._coronaUniformBuffer = device.createBuffer({ size: 64, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
     this._globalBindGroupLayout = device.createBindGroupLayout({
-      entries: [{ binding: 0, visibility: ['vertex', 'fragment'], buffer: { minBindingSize: GLOBAL_BUFFER_FLOATS * 4 } }],
+      entries: [{ binding: 0, visibility: VISIBILITY_VERTEX_FRAGMENT, buffer: { minBindingSize: GLOBAL_BUFFER_FLOATS * 4 } }],
     });
     this._coronaBindGroupLayout = device.createBindGroupLayout({
       entries: [
-        { binding: 0, visibility: ['vertex', 'fragment'], buffer: { minBindingSize: GLOBAL_BUFFER_FLOATS * 4 } },
-        { binding: 1, visibility: ['vertex'], buffer: { minBindingSize: 64 } },
+        { binding: 0, visibility: VISIBILITY_VERTEX_FRAGMENT, buffer: { minBindingSize: GLOBAL_BUFFER_FLOATS * 4 } },
+        { binding: 1, visibility: VISIBILITY_VERTEX, buffer: { minBindingSize: 64 } },
       ],
     });
   }
@@ -543,14 +569,14 @@ export class SolarSystemRenderer {
     if (Object.keys(textureMap).length === 0) throw new Error('buildBindGroups: no uploaded textures.');
     // texture+sampler+bodyU+globalU — shared by pSphereLit, pSunEmissive and pRings.
     this._texturedBindGroupLayout = device.createBindGroupLayout({ entries: [
-      { binding: 0, visibility: ['fragment'], texture: { sampleType: 'float', viewDimension: '2d' } },
-      { binding: 1, visibility: ['fragment'], sampler: { bindingType: 'filtering' } },
-      { binding: 2, visibility: ['vertex', 'fragment'], buffer: { minBindingSize: BODY_UNIFORM_FLOATS * 4 } },
-      { binding: 3, visibility: ['vertex', 'fragment'], buffer: { minBindingSize: GLOBAL_BUFFER_FLOATS * 4 } },
+      { binding: 0, visibility: VISIBILITY_FRAGMENT, texture: { sampleType: 'float', viewDimension: '2d' } },
+      { binding: 1, visibility: VISIBILITY_FRAGMENT, sampler: { bindingType: 'filtering' } },
+      { binding: 2, visibility: VISIBILITY_VERTEX_FRAGMENT, buffer: { minBindingSize: BODY_UNIFORM_FLOATS * 4 } },
+      { binding: 3, visibility: VISIBILITY_VERTEX_FRAGMENT, buffer: { minBindingSize: GLOBAL_BUFFER_FLOATS * 4 } },
     ] });
     this._orbitBindGroupLayout = device.createBindGroupLayout({ entries: [
-      { binding: 0, visibility: ['vertex'], buffer: { minBindingSize: ORBIT_UNIFORM_FLOATS * 4 } },
-      { binding: 1, visibility: ['vertex', 'fragment'], buffer: { minBindingSize: GLOBAL_BUFFER_FLOATS * 4 } },
+      { binding: 0, visibility: VISIBILITY_VERTEX, buffer: { minBindingSize: ORBIT_UNIFORM_FLOATS * 4 } },
+      { binding: 1, visibility: VISIBILITY_VERTEX_FRAGMENT, buffer: { minBindingSize: GLOBAL_BUFFER_FLOATS * 4 } },
     ] });
     this._globalBindGroup = device.createBindGroup({
       layout: this._globalBindGroupLayout,
