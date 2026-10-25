@@ -68,7 +68,7 @@ function buildPlanetBody(record, occluderSlot) {
     displayRadius: bodyDisplayRadiusSceneUnits(record, PLANET_SIZE_MULTIPLIER_DEFAULT),
     elements: {
       aAU: record.aAU,
-      e: record.eccentricity,
+      eccentricity: record.eccentricity,
       iRad: toRadians(record.inclinationDeg),
       omegaRadOmega: toRadians(record.ascendingNodeDeg),
       pericenterLongitudeRad: toRadians(record.pericenterLongitudeDeg),
@@ -102,7 +102,7 @@ function buildMoonBody(moonRecord, parentRecord) {
     displayRadius: bodyDisplayRadiusSceneUnits(moonRecord, PLANET_SIZE_MULTIPLIER_DEFAULT),
     elements: {
       aMmkm: moonRecord.aMmkm,
-      e: 0,
+      eccentricity: 0,
       iRad: toRadians(moonRecord.inclinationDeg),
       omegaRadOmega: 0,
       pericenterLongitudeRad: 0,
@@ -146,7 +146,7 @@ function rebuildOrbitVertexBuffers() {
   const orbitLineUpdates = [];
   for (const body of scene.bodies) {
     if (!body.elements) continue; // Sun has no orbit line.
-    const vertices = computeOrbitEllipseLocalVertices({ aDisplayUnits: body.displayOrbitDistance, eccentricity: body.elements.e }, ORBIT_LINE_SEGMENT_COUNT);
+    const vertices = computeOrbitEllipseLocalVertices({ aDisplayUnits: body.displayOrbitDistance, eccentricity: body.elements.eccentricity }, ORBIT_LINE_SEGMENT_COUNT);
     orbitLineUpdates.push({ name: body.name, vertices });
   }
   scene.onOrbitRebuild(orbitLineUpdates);
