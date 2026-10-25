@@ -158,7 +158,7 @@ function rebuildOrbitVertexBuffers() {
  *
  * @param {Record<string, object>} textureMap - textureKey → GPUTexture as produced by textures.js (kept on the scene for the renderer).
  * @param {function(Array<{ name: string, vertices: Float32Array }>) | undefined} onOrbitRebuild - callback into the renderer; receives one {name, vertices} entry per orbit line after every scale recompute (and once at creation) so GPU orbit buffers can be (re)built.
- * @returns {Array<object>} the scene's bodies array ([Sun, 8 planets, 13 moons]); occluderIndex slots 0..9 are Sun, Mercury…Neptune — slot 9 is reserved for the shader's radius-0 padding entry.
+ * @returns {Array<object>} the scene's bodies array ([Sun, 8 planets, 12 moons]); occluderIndex slots 0..9 are Sun, Mercury…Neptune — slot 9 is reserved for the shader's radius-0 padding entry.
  */
 export function createSolarSystem(textureMap, onOrbitRebuild) {
   const bodies = [];
