@@ -1,0 +1,341 @@
+/* Dark space theme for the WebGPU Solar System page.
+   Layout: #viewport canvas fills the window; #hud floats top-right;
+   #factoid-popup docks bottom-center; overlays cover the full screen. */
+
+:root {
+  --background-deep: #04060f;
+  --panel-background: rgba(10, 15, 28, 0.82);
+  --panel-border: rgba(120, 160, 255, 0.22);
+  --text-bright: #e8edf7;
+  --text-dim: #9aa7c4;
+  --accent-blue: #6db3ff;
+  --accent-warm: #ffd28a;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--background-deep);
+  color: var(--text-bright);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* ---------- Viewport canvas + label layer ---------- */
+
+#viewport {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#label-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none; /* children re-enable their own hit area */
+  overflow: hidden;
+}
+
+.body-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -140%);
+  pointer-events: auto;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.3;
+  padding: 1px 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+  color: var(--text-bright);
+  background: rgba(5, 8, 16, 0.62);
+  border: 1px solid var(--label-color, var(--accent-blue));
+  user-select: none;
+}
+
+/* ---------- Right HUD column ---------- */
+
+#hud {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 264px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  padding: 12px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+}
+
+#title-bar {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--accent-blue);
+}
+
+#control-hints,
+#fps-readout {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* ---------- Generic HUD sections ---------- */
+
+.hud-section-title {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+/* ---------- Time controls ---------- */
+
+#time-controls .slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#time-controls input[type='range'] {
+  flex: 1;
+}
+
+.time-readout {
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 12px;
+  color: var(--accent-warm);
+  min-width: 84px;
+  text-align: right;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.chip,
+.jump-button,
+#pause-toggle {
+  font: inherit;
+  font-size: 11px;
+  color: var(--text-bright);
+  padding: 3px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+
+.chip:hover,
+.jump-button:hover,
+#pause-toggle:hover {
+  background: rgba(109, 179, 255, 0.18);
+}
+
+.chip.is-active {
+  border-color: var(--accent-blue);
+  background: rgba(109, 179, 255, 0.28);
+}
+
+/* ---------- Jump-to grid ---------- */
+
+#jump-to-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 5px;
+}
+
+.jump-button.is-focused {
+  border-color: var(--accent-warm);
+  background: rgba(255, 210, 138, 0.18);
+}
+
+/* ---------- Scale panel ---------- */
+
+#scale-panel summary {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.scale-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+
+.scale-row label {
+  font-size: 11px;
+  color: var(--text-dim);
+  display: flex;
+  justify-content: space-between;
+}
+
+#scale-reset {
+  width: 100%;
+  margin-top: 2px;
+}
+
+/* ---------- Range inputs ---------- */
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(120, 160, 255, 0.25);
+  outline: none;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  cursor: pointer;
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  cursor: pointer;
+}
+
+/* ---------- Factoid popup (bottom-center card) ---------- */
+
+#factoid-popup {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(360px, calc(100vw - 24px));
+  padding: 14px 16px 12px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  z-index: 20;
+}
+
+#factoid-popup[hidden] {
+  display: none;
+}
+
+#factoid-popup h2 {
+  margin: 0 34px 6px 0;
+  font-size: 17px;
+  letter-spacing: 0.03em;
+}
+
+.fact-type {
+  display: block;
+  margin-top: -2px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.fact-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 3px 14px;
+  margin: 8px 0 6px;
+  font-size: 12.5px;
+}
+
+.fact-grid dt {
+  color: var(--text-dim);
+}
+
+.fact-trivia {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  font-style: italic;
+  color: var(--accent-warm);
+}
+
+#popup-close-button {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  padding: 2px 7px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+#popup-close-button:hover {
+  color: var(--text-bright);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ---------- Fatal / unsupported overlay ---------- */
+
+#unsupported-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(3, 5, 12, 0.94);
+  z-index: 50;
+}
+
+#unsupported-overlay[hidden] {
+  display: none;
+}
+
+.overlay-card {
+  max-width: 420px;
+  padding: 28px 32px;
+  text-align: center;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: var(--panel-background);
+}
+
+.overlay-card h2 {
+  margin-top: 0;
+  font-size: 19px;
+  color: var(--accent-warm);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 640px) {
+  #hud {
+    width: 208px;
+    padding: 8px;
+  }
+
+  #factoid-popup {
+    bottom: 8px;
+  }
+}
