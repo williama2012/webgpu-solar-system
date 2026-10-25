@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebGPU Solar System</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!-- 3D render target (full viewport) -->
+  <canvas id="viewport"></canvas>
+
+  <!-- Screen-space body labels; populated by src/ui.js (pointer-events off, children auto) -->
+  <div id="label-layer"></div>
+
+  <!-- Right-hand HUD column -->
+  <aside id="hud">
+    <header id="title-bar">WebGPU Solar System</header>
+    <p id="control-hints">Left-drag rotate &middot; wheel zoom &middot; right/shift-drag pan<br />Click a body (or its label) to select</p>
+    <div id="fps-readout" aria-live="polite">&#8212; fps</div>
+
+    <!-- Time scale: slider + preset chips + pause + readout (built by src/ui.js) -->
+    <section id="time-controls" aria-label="Time controls"></section>
+
+    <!-- Jump To buttons: Sun + 8 planets + Overview (built by src/ui.js) -->
+    <section id="jump-to-grid" aria-label="Jump to"></section>
+
+    <!-- Scene scale: planet size, sun radius, distance compression + reset (built by src/ui.js) -->
+    <details id="scale-panel">
+      <summary>Scale &amp; Distance</summary>
+      <div id="scale-controls"></div>
+    </details>
+  </aside>
+
+  <!-- Factoid card shown on selection: bottom-center (populated by src/ui.js) -->
+  <div id="factoid-popup" hidden></div>
+
+  <!-- Full-screen card, shown only when WebGPU is unavailable or init fails -->
+  <div id="unsupported-overlay" hidden>
+    <div class="overlay-card">
+      <h2 id="overlay-title">WebGPU not available</h2>
+      <p>This simulation requires the <strong>WebGPU</strong> device API, which is a hard requirement of the task.</p>
+      <p>Please open this page in the latest <strong>Chrome</strong> or <strong>Edge</strong> and try again.</p>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
