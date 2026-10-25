@@ -1,0 +1,46 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<p>WGSL leading-newline probe v3 (built from real src bytes). Wait for <code>done:</code> in the box below.</p>
+<pre id="out">running…</pre>
+<script type="module">
+// Five probes: baseline sanity / shared preamble CRLF-vs-LF / full stars shader CRLF-vs-LF.
+const PreambleAsApp = "struct Occluder { center: vec3<f32>; radius: f32 };\r\nstruct GlobalUniforms {\r\n  cameraPosition: vec4<f32>;    // scene position, w = 1\r\n  timeSeconds: f32;             // animated sim seconds (twinkle / corona drift)\r\n  camForward: vec4<f32>;       // normalized scene axes from getCameraBasis()\r\n  camRight: vec4<f32>;\r\n  camUp: vec4<f32>;\r\n  occluderCount: f32;          // always 10 (slots 0..8 sun+planets, slot 9 pad)\r\n  occluders: array<Occluder, 16>;\r\n  coronaCenter: vec4<f32>;    // xyz scene, w = live Sun displayRadius\r\n  projectionParams: vec4<f32>;// x = tanX, y = tanY (from P), z aspect, w 0\r\n  viewProjection: mat4x4<f32>;   // P·V per frame (floats 96..111)\r\n};\r\n\r\n/**\r\n * §7.3 analytic shadow: {1.0, 0.0} hard umbra. Light sits at scene origin;\r\n * an occluder blocks only while closer to the body than the light is and\r\n * inside its angular radius (cos(asin(r/d)) test).\r\n */\r\nfn analyticShadowFactor(worldPos: vec3<f32>, selfIndex: f32, u: GlobalUniforms) -> f32 {\r\n  let lightDistance = length(worldPos);\r\n  var factor: f32 = 1.0;\r\n  let count = u32(u.occluderCount);\r\n  for (var i: u32 = 0u; i < count; i = i + 1u) {\r\n    if (i == u32(selfIndex)) continue;              // body never self-occludes\r\n    let ocl = u.occluders[i];\r\n    let toOcl = ocl.center - worldPos;\r\n    let d = length(toOcl);\r\n    if (d >= lightDistance) continue;              // sun itself (==) / past the light\r\n    let toLightDir = normalize(-worldPos);\r\n    let sepCos = dot(toLightDir, normalize(toOcl));\r\n    if (sepCos <= 0.0) continue;                  // occluder behind this body\r\n    let s = ocl.radius / max(d, 0.001);\r\n    if (sepCos >= sqrt(max(0.0, 1.0 - s * s))) { factor = 0.0; }\r\n  }\r\n  return factor;\r\n}\r\n\r\nfn starHash(c: vec3<f32>) -> f32 { let d = dot(c, vec3<f32>(127.1, 311.7, 74.7)); return fract(sin(d) * 43758.5453); }\r";
+const StarsAsApp    = "struct Occluder { center: vec3<f32>; radius: f32 };\r\nstruct GlobalUniforms {\r\n  cameraPosition: vec4<f32>;    // scene position, w = 1\r\n  timeSeconds: f32;             // animated sim seconds (twinkle / corona drift)\r\n  camForward: vec4<f32>;       // normalized scene axes from getCameraBasis()\r\n  camRight: vec4<f32>;\r\n  camUp: vec4<f32>;\r\n  occluderCount: f32;          // always 10 (slots 0..8 sun+planets, slot 9 pad)\r\n  occluders: array<Occluder, 16>;\r\n  coronaCenter: vec4<f32>;    // xyz scene, w = live Sun displayRadius\r\n  projectionParams: vec4<f32>;// x = tanX, y = tanY (from P), z aspect, w 0\r\n  viewProjection: mat4x4<f32>;   // P·V per frame (floats 96..111)\r\n};\r\n\r\n/**\r\n * §7.3 analytic shadow: {1.0, 0.0} hard umbra. Light sits at scene origin;\r\n * an occluder blocks only while closer to the body than the light is and\r\n * inside its angular radius (cos(asin(r/d)) test).\r\n */\r\nfn analyticShadowFactor(worldPos: vec3<f32>, selfIndex: f32, u: GlobalUniforms) -> f32 {\r\n  let lightDistance = length(worldPos);\r\n  var factor: f32 = 1.0;\r\n  let count = u32(u.occluderCount);\r\n  for (var i: u32 = 0u; i < count; i = i + 1u) {\r\n    if (i == u32(selfIndex)) continue;              // body never self-occludes\r\n    let ocl = u.occluders[i];\r\n    let toOcl = ocl.center - worldPos;\r\n    let d = length(toOcl);\r\n    if (d >= lightDistance) continue;              // sun itself (==) / past the light\r\n    let toLightDir = normalize(-worldPos);\r\n    let sepCos = dot(toLightDir, normalize(toOcl));\r\n    if (sepCos <= 0.0) continue;                  // occluder behind this body\r\n    let s = ocl.radius / max(d, 0.001);\r\n    if (sepCos >= sqrt(max(0.0, 1.0 - s * s))) { factor = 0.0; }\r\n  }\r\n  return factor;\r\n}\r\n\r\nfn starHash(c: vec3<f32>) -> f32 { let d = dot(c, vec3<f32>(127.1, 311.7, 74.7)); return fract(sin(d) * 43758.5453); }\r\r\nstruct VertexOut { @builtin(position) position: vec2<f32>; @location(0) ndcIn: vec2<f32>; };\r\n@group(0) @binding(0) var<uniform> globalU: GlobalUniforms;\r\n@vertex fn vs_main(@location(0) inNdc: vec2<f32>) -> VertexOut { return VertexOut(inNdc, inNdc); }\r\n@fragment fn fs_main(@location(0) ndcIn: vec2<f32>) -> @location(0) vec4<f32> {\r\n  let g = globalU;\r\n  let dir = normalize(g.camForward + g.camRight * (ndcIn.x * g.projectionParams.x) + g.camUp * (ndcIn.y * g.projectionParams.y));\r\n  var color = vec3<f32>(0.010, 0.016, 0.035);                          // deep-space base\r\n  let bandN = normalize(vec3<f32>(0.42, 0.55, 0.72));                  // faint Milky Way band\r\n  let t = abs(dot(dir, bandN));\r\n  let band = exp(-t * t * 9.0) * 0.55 + exp(-t * t * 46.0) * 1.2;     // §7.1 milky-way hint\r\n  color += vec3<f32>(0.055, 0.048, 0.062) * band;\r\n  let cell = floor(dir * 48.0);\r\n  let h = starHash(cell);\r\n  if (h < 0.06) {                                                       // sparse dot field\r\n    let seed = vec3<f32>(fract(h * 57.31), fract(h * 91.73), fract(h * 31.97));\r\n    let anchor = (cell + seed - 0.5) / 48.0;\r\n    let rAng = distance(dir, normalize(anchor));\r\n    let b = smoothstep(0.006, 0.0, rAng);\r\n    let twinkle = 0.55 + 0.45 * sin(g.timeSeconds * (0.6 + seed.x * 1.2) + h * 6.28318);\r\n    let tint = mix(vec3<f32>(0.72, 0.79, 1.0), vec3<f32>(1.0, 0.93, 0.78), fract(h * 17.23));\r\n    color += tint * b * (0.35 + 0.65 * seed.y) * twinkle;\r\n  }\r\n  return vec4<f32>(color, 1.0);\r\n}\r";
+const preambleLF = PreambleAsApp.replace(/\r\n/g, '\n');
+const starsLF    = StarsAsApp.replace(/\r\n/g, '\n');
+const gWithLead  = '\n' + PreambleAsApp;
+const sWithLead  = '\n' + StarsAsApp;
+let result = '';
+if (!('gpu' in navigator)) { result = 'NO_GPU\n'; }
+else {
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) { result = 'NO_ADAPTER\n'; }
+  else {
+    const device = await adapter.requestDevice({ requiredFeatures: [], requiredLimits: {} });
+    const pending = [];
+    device.onuncapturederror = (e) => pending.push(String(e.message).split('\n')[0]);
+    async function probe(label, code) {
+      const n0 = pending.length;
+      try { device.createShaderModule({ label, code }); }
+      catch (e) { return label + ': THROWS ' + e.message + '\n'; }
+      await new Promise((r) => setTimeout(r, 150)); // let async device errors land
+      const got = pending.slice(n0);
+      if (!got.length) return label + ': OK\n';
+      return label + ': INVALID — ' + got.join(' | ') + '\n';
+    }
+    result += await probe('p1_minimal_baseline', 'struct A { x: f32; y: f32; };\n');
+    result += await probe('p2_preamble_CRLF_asApp', PreambleAsApp);
+    result += await probe('p3_preamble_LF', preambleLF);
+    result += await probe('p4_stars_CRLF_asApp', StarsAsApp);
+    result += await probe('p5_stars_LF', starsLF);
+    result += await probe('p6_G_asApp_now', PreambleAsApp);
+    result += await probe('p7_S_asApp_now', StarsAsApp);
+    result += await probe('p8_G_LEADING_NL', gWithLead);
+    result += await probe('p9_S_LEADING_NL', sWithLead);
+    result += await probe('p10_minimal_leadNL', '\nstruct A { x: vec3<f32>; y: f32; };');
+    result += await probe('p11_minimal_plain', 'struct A { x: vec3<f32>; y: f32; };');
+  }
+}
+document.getElementById('out').textContent = 'done:\n' + result;
+try { await fetch('/__result', { method: 'POST', body: document.getElementById('out').textContent }); } catch (e) {}
+
+</script></body></html>
