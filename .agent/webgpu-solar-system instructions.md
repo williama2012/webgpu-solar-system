@@ -27,13 +27,13 @@ Requirements:
 Provide a fully functional HTML page with css and javascript in seperate files, demonstrating the described 3D solar system. Include comments on all functions with description and function signature. Write functions, variables, ect. in human readable names (no single letter variables) and format (don't try to minify). The javascript *can* be broken into multiple modules based on function purpose to reduce a single large file for developement. Write individual files as soon as they are ready to avoid losing information if this chat context gets compressed.
 
 # Notes
-- Use https://github.com/samdauwe/webgpu-native-examples for examples.
+- Use https://github.com/samdauwe/webgpu-native-examples for base WebGPU examples.
 - Write individual files to disk as soon as they are ready to avoid losing information if this chat context gets compressed.
-- *eslint* is installed in the project, *use it*, do not wait until the end to find out there is an error from a 'unexpected character'.
+- Use eslint for basic validations.
 - You may include more npm packages if needed for the project.
 - Realistic scale in terms of distance may need to be compressed for better visualization.
 - Ensure the simulation runs smoothly on modern browsers without additional plugins.
 
 # Example
 // No direct code example due to complexity, but ensure the inclusion of [Scene Setup], [Sun Object], [Planet and Satellite Meshes], [Animation Loop], and [Camera Controls] in your code.
-- WebGPU examples https://github.com/samdauwe/webgpu-native-examples
+- WebGPU examples: https://github.com/samdauwe/webgpu-native-examples
