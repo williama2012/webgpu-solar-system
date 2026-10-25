@@ -1,0 +1,25 @@
+{
+  "name": "webgpu-solar-system",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/williama2012/webgpu-solar-system#readme",
+  "bugs": {
+    "url": "https://github.com/williama2012/webgpu-solar-system/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/williama2012/webgpu-solar-system.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.html",
+  "scripts": {
+    "lint": "eslint src",
+    "lint:fix": "eslint --fix src",
+    "start": "npx --yes http-server . -p 8080 -c-1"
+  },
+  "devDependencies": {
+    "eslint": "^10.13.0"
+  }
+}
