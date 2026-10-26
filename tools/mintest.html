@@ -1,0 +1,35 @@
+<!doctype html><html><body>
+<pre id="out">running…</pre>
+<script type="module">
+const out = document.getElementById('out');
+let r = '';
+async function run() {
+  if (!('gpu' in navigator)) { out.textContent = 'NO GPU'; return; }
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) { out.textContent = 'NO ADAPTER'; return; }
+  const device = await adapter.requestDevice();
+  const uncaptured = [];
+  device.onuncapturederror = (e) => { uncaptured.push((e && e.reason ? String(e.reason.message || e.reason) : '').split('\n')[0]); };
+  async function t(label, code) {
+    const before = uncaptured.length;
+    device.pushErrorScope('validation');
+    device.createShaderModule({ label, code });
+    let err = null;
+    try { const scope = await device.popErrorScope(); if (scope) err = String(scope.message || scope); } catch (e2) {}
+    if (!err) { await new Promise((z) => setTimeout(z, 150)); if (uncaptured.length > before) err = uncaptured.slice(before).join(' | '); }
+    r += label + ': ' + (err ? 'INVALID — ' + err.split('\n').slice(0, 3).join(' / ') : 'OK') + '\n';
+  }
+  await t('scalar_only', 'struct A { x: f32; };');
+  await t('vec4_member', 'struct A { x: vec4<f32>; };');
+  await t('two_scalars', 'struct A { x: f32; y: f32; };');
+  await t('var_generic', 'var g: vec4<f32>;');
+  const tri = [
+    'struct VOut { @builtin(position) position: vec2<f32>; @location(0) color: vec3<f32>; };',
+    '@vertex fn vs_main(@builtin(vertex_index) vi: u32) -> VOut { let p: vec2<f32> = array<vec2<f32>, 3>(vec2<f32>(-1.0, -1.0), vec2<f32>(2.0, -1.0), vec2<f32>(-1.0, 2.0))[vi % 3u]; let o: VOut; o.position = p; o.color = vec3<f32>(0.0, 0.0, 1.0); return o; }',
+    '@fragment fn fs_main(in: VOut) -> @location(0) vec4<f32> { return vec4<f32>(in.color, 1.0); }'
+  ].join('\n');
+  await t('triangle_real', tri);
+  out.textContent = 'done:\n' + r;
+}
+run().catch((e) => { out.textContent = 'ERR ' + e; });
+</script></body></html>

@@ -1,63 +1,100 @@
 <!doctype html><html><head><meta charset="utf-8"></head><body>
-<p>WGSL leading-newline probe v4 (live extraction). Wait for <code>done:</code> in the box below.</p>
+<p>WGSL probe v7 (struct separator matrix + live app-shader retest). Wait for <code>done:</code> in the box below.</p>
 <pre id="out">running…</pre>
 <script type="module">
-// Five probes: baseline sanity / shared preamble CRLF-vs-LF / full stars shader CRLF-vs-LF.
-const PreambleAsApp = "struct Occluder { center: vec3<f32>; radius: f32 };\r\nstruct GlobalUniforms {\r\n  cameraPosition: vec4<f32>;    // scene position, w = 1\r\n  timeSeconds: f32;             // animated sim seconds (twinkle / corona drift)\r\n  camForward: vec4<f32>;       // normalized scene axes from getCameraBasis()\r\n  camRight: vec4<f32>;\r\n  camUp: vec4<f32>;\r\n  occluderCount: f32;          // always 10 (slots 0..8 sun+planets, slot 9 pad)\r\n  occluders: array<Occluder, 16>;\r\n  coronaCenter: vec4<f32>;    // xyz scene, w = live Sun displayRadius\r\n  projectionParams: vec4<f32>;// x = tanX, y = tanY (from P), z aspect, w 0\r\n  viewProjection: mat4x4<f32>;   // P·V per frame (floats 96..111)\r\n};\r\n\r\n/**\r\n * §7.3 analytic shadow: {1.0, 0.0} hard umbra. Light sits at scene origin;\r\n * an occluder blocks only while closer to the body than the light is and\r\n * inside its angular radius (cos(asin(r/d)) test).\r\n */\r\nfn analyticShadowFactor(worldPos: vec3<f32>, selfIndex: f32, u: GlobalUniforms) -> f32 {\r\n  let lightDistance = length(worldPos);\r\n  var factor: f32 = 1.0;\r\n  let count = u32(u.occluderCount);\r\n  for (var i: u32 = 0u; i < count; i = i + 1u) {\r\n    if (i == u32(selfIndex)) continue;              // body never self-occludes\r\n    let ocl = u.occluders[i];\r\n    let toOcl = ocl.center - worldPos;\r\n    let d = length(toOcl);\r\n    if (d >= lightDistance) continue;              // sun itself (==) / past the light\r\n    let toLightDir = normalize(-worldPos);\r\n    let sepCos = dot(toLightDir, normalize(toOcl));\r\n    if (sepCos <= 0.0) continue;                  // occluder behind this body\r\n    let s = ocl.radius / max(d, 0.001);\r\n    if (sepCos >= sqrt(max(0.0, 1.0 - s * s))) { factor = 0.0; }\r\n  }\r\n  return factor;\r\n}\r\n\r\nfn starHash(c: vec3<f32>) -> f32 { let d = dot(c, vec3<f32>(127.1, 311.7, 74.7)); return fract(sin(d) * 43758.5453); }\r";
-const StarsAsApp    = "struct Occluder { center: vec3<f32>; radius: f32 };\r\nstruct GlobalUniforms {\r\n  cameraPosition: vec4<f32>;    // scene position, w = 1\r\n  timeSeconds: f32;             // animated sim seconds (twinkle / corona drift)\r\n  camForward: vec4<f32>;       // normalized scene axes from getCameraBasis()\r\n  camRight: vec4<f32>;\r\n  camUp: vec4<f32>;\r\n  occluderCount: f32;          // always 10 (slots 0..8 sun+planets, slot 9 pad)\r\n  occluders: array<Occluder, 16>;\r\n  coronaCenter: vec4<f32>;    // xyz scene, w = live Sun displayRadius\r\n  projectionParams: vec4<f32>;// x = tanX, y = tanY (from P), z aspect, w 0\r\n  viewProjection: mat4x4<f32>;   // P·V per frame (floats 96..111)\r\n};\r\n\r\n/**\r\n * §7.3 analytic shadow: {1.0, 0.0} hard umbra. Light sits at scene origin;\r\n * an occluder blocks only while closer to the body than the light is and\r\n * inside its angular radius (cos(asin(r/d)) test).\r\n */\r\nfn analyticShadowFactor(worldPos: vec3<f32>, selfIndex: f32, u: GlobalUniforms) -> f32 {\r\n  let lightDistance = length(worldPos);\r\n  var factor: f32 = 1.0;\r\n  let count = u32(u.occluderCount);\r\n  for (var i: u32 = 0u; i < count; i = i + 1u) {\r\n    if (i == u32(selfIndex)) continue;              // body never self-occludes\r\n    let ocl = u.occluders[i];\r\n    let toOcl = ocl.center - worldPos;\r\n    let d = length(toOcl);\r\n    if (d >= lightDistance) continue;              // sun itself (==) / past the light\r\n    let toLightDir = normalize(-worldPos);\r\n    let sepCos = dot(toLightDir, normalize(toOcl));\r\n    if (sepCos <= 0.0) continue;                  // occluder behind this body\r\n    let s = ocl.radius / max(d, 0.001);\r\n    if (sepCos >= sqrt(max(0.0, 1.0 - s * s))) { factor = 0.0; }\r\n  }\r\n  return factor;\r\n}\r\n\r\nfn starHash(c: vec3<f32>) -> f32 { let d = dot(c, vec3<f32>(127.1, 311.7, 74.7)); return fract(sin(d) * 43758.5453); }\r\r\nstruct VertexOut { @builtin(position) position: vec2<f32>; @location(0) ndcIn: vec2<f32>; };\r\n@group(0) @binding(0) var<uniform> globalU: GlobalUniforms;\r\n@vertex fn vs_main(@location(0) inNdc: vec2<f32>) -> VertexOut { return VertexOut(inNdc, inNdc); }\r\n@fragment fn fs_main(@location(0) ndcIn: vec2<f32>) -> @location(0) vec4<f32> {\r\n  let g = globalU;\r\n  let dir = normalize(g.camForward + g.camRight * (ndcIn.x * g.projectionParams.x) + g.camUp * (ndcIn.y * g.projectionParams.y));\r\n  var color = vec3<f32>(0.010, 0.016, 0.035);                          // deep-space base\r\n  let bandN = normalize(vec3<f32>(0.42, 0.55, 0.72));                  // faint Milky Way band\r\n  let t = abs(dot(dir, bandN));\r\n  let band = exp(-t * t * 9.0) * 0.55 + exp(-t * t * 46.0) * 1.2;     // §7.1 milky-way hint\r\n  color += vec3<f32>(0.055, 0.048, 0.062) * band;\r\n  let cell = floor(dir * 48.0);\r\n  let h = starHash(cell);\r\n  if (h < 0.06) {                                                       // sparse dot field\r\n    let seed = vec3<f32>(fract(h * 57.31), fract(h * 91.73), fract(h * 31.97));\r\n    let anchor = (cell + seed - 0.5) / 48.0;\r\n    let rAng = distance(dir, normalize(anchor));\r\n    let b = smoothstep(0.006, 0.0, rAng);\r\n    let twinkle = 0.55 + 0.45 * sin(g.timeSeconds * (0.6 + seed.x * 1.2) + h * 6.28318);\r\n    let tint = mix(vec3<f32>(0.72, 0.79, 1.0), vec3<f32>(1.0, 0.93, 0.78), fract(h * 17.23));\r\n    color += tint * b * (0.35 + 0.65 * seed.y) * twinkle;\r\n  }\r\n  return vec4<f32>(color, 1.0);\r\n}\r";
-const preambleLF = PreambleAsApp.replace(/\r\n/g, '\n');
-const starsLF    = StarsAsApp.replace(/\r\n/g, '\n');
-const gWithLead  = '\n' + PreambleAsApp;
-const sWithLead  = '\n' + StarsAsApp;
 let result = '';
-if (!('gpu' in navigator)) { result = 'NO_GPU\n'; }
-else {
+function line(s) { result += s + '\n'; }
+line('UA: ' + navigator.userAgent);
+async function main() {
+  if (!('gpu' in navigator)) { line('NO navigator.gpu'); line('ALL-TESTS-DONE'); return; }
   const adapter = await navigator.gpu.requestAdapter();
-  if (!adapter) { result = 'NO_ADAPTER\n'; }
-  else {
-    const device = await adapter.requestDevice({ requiredFeatures: [], requiredLimits: {} });
-    const pending = [];
-    device.onuncapturederror = (e) => pending.push(String(e.message).split('\n')[0]);
-    async function probe(label, code) {
-      const n0 = pending.length;
-      try { device.createShaderModule({ label, code }); }
-      catch (e) { return label + ': THROWS ' + e.message + '\n'; }
-      await new Promise((r) => setTimeout(r, 150)); // let async device errors land
-      const got = pending.slice(n0);
-      if (!got.length) return label + ': OK\n';
-      return label + ': INVALID — ' + got.join(' | ') + '\n';
+  line('adapter-arch: ' + (adapter && adapter.info ? (adapter.info.architecture || '?') : 'NONE'));
+  if (!adapter) { line('ALL-TESTS-DONE'); return; }
+  const device = await adapter.requestDevice();
+  const uncaptured = [];
+  device.onuncapturederror = (e) => { uncaptured.push(String((e && e.reason) ? (e.reason.message || e.reason) : e)); };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  async function testModule(label, code) {
+    const before = uncaptured.length;
+    device.pushErrorScope('validation');
+    device.createShaderModule({ label, code });
+    let err = null;
+    try { const scope = await device.popErrorScope(); if (scope) err = String(scope.message || scope); } catch (e2) {}
+    if (!err) { await sleep(150); if (uncaptured.length > before) err = uncaptured.slice(before).join(' | '); }
+    line(label + ': ' + (err ? 'INVALID — ' + err : 'OK'));
+    return !err;
+  }
+
+  const tests = {
+    s4_semi_knownfail: 'struct A { x: f32; y: i32; };',
+    s1_comma: 'struct A { x: f32, y: i32 };',
+    s2_bare: 'struct A { x: f32 };',
+    s3_trailcomma: 'struct A { x: f32, };',
+    s5_semicomma: 'struct A { x: f32;, y: i32; };',
+    s6_comma_annot: 'struct A { @location(0) p: vec2<f32>, @location(1) uv: vec3<f32> };',
+    s7_comma_trailcomma: 'struct A { @location(0) p: vec2<f32>, @location(1) uv: vec3<f32>, };'
+  };
+  let anyOk = false;
+  for (const k of Object.keys(tests)) { if (await testModule(k, tests[k])) anyOk = true; }
+
+  // live app shaders under the best-guess dialect: field-terminator ';' -> ',' (code part only)
+  const live = await (await fetch('/src/renderer.js', { cache: 'no-store' })).text();
+  function rawBody(name) {
+    const marker = 'const ' + name;
+    const i = live.indexOf(marker); if (i < 0) return null;
+    let p = i + marker.length; while (p < live.length && live[p] !== '`') p += 1;
+    const start = p + 1; let q = start;
+    for (;;) { const c = live[q]; if (c === '\\') q += 2; else if (c === '`') break; else q += 1; }
+    return live.slice(start, q);
+  }
+  const Graw = rawBody('GLOBAL_UNIFORMS_WGSL');
+  const Sraw = rawBody('SHADER_BACKGROUND_STARS');
+  line('extract: G=' + (Graw ? Graw.length : 'NO') + ' S=' + (Sraw ? Sraw.length : 'NO'));
+  if (Graw && Sraw) {
+    // per-line: cut code at first '//' or line end, move last ';' of the code part -> ','
+    function commaFields(src) {
+      return src.split('\n').map((l) => {
+        let cut = l.length; const c = l.indexOf('//'); if (c >= 0) cut = c;
+        const seg = l.slice(0, cut);
+        if (!seg.includes(';')) return l;
+        const code = seg.replace(/;/g, ',');
+        return code + l.slice(cut);
+      }).join('\n');
     }
-    result += await probe('p1_minimal_baseline', 'struct A { x: f32; y: f32; };\n');
-    result += await probe('p2_preamble_CRLF_asApp', PreambleAsApp);
-    result += await probe('p3_preamble_LF', preambleLF);
-    result += await probe('p4_stars_CRLF_asApp', StarsAsApp);
-    result += await probe('p5_stars_LF', starsLF);
-    result += await probe('p6_G_asApp_now', PreambleAsApp);
-    result += await probe('p7_S_asApp_now', StarsAsApp);
-    result += await probe('p8_G_LEADING_NL', gWithLead);
-    result += await probe('p9_S_LEADING_NL', sWithLead);
-    result += await probe('p10_minimal_leadNL', '\nstruct A { x: vec3<f32>; y: f32; };');
-    result += await probe('p11_minimal_plain', 'struct A { x: vec3<f32>; y: f32; };');
+    const Gc = commaFields(Graw).replace(/^\n+/, '');
+    await testModule('g_comma_fields', Gc);
+    const Sc = commaFields(Sraw.replace('${GLOBAL_UNIFORMS_WGSL}', Gc)).replace(/^\n+/, '');
+    line('Sc lines=' + Sc.split('\n').length);
+    for (let i = 0; i < 3; i += 1) line('Sc[' + i + ']=' + JSON.stringify(Sc.split('\n')[i].slice(0, 72)));
+    await testModule('s_comma_fields', Sc);
 
-    // v4 LIVE: fetch the served renderer.js; test the EXACT strings createPipelines uses.
-    const hexcp = (ch) => '\\u' + ch.codePointAt(0).toString(16).padStart(4, '0');
-    const live = await (await fetch('/src/renderer.js', { cache: 'no-store' })).text();
-    result += '\n--- v4 LIVE from served /src/renderer.js ---\n';
-    result += 'len=' + live.length + ' has_GLOBAL_UNIFORMS_WGSL=' + live.includes('GLOBAL_UNIFORMS_WGSL') + '\n';
-    for (const m of live.matchAll(/const (SHADER_\w+) =`/g)) {
-      const name = m[1];
-      const start = m.index + m[0].length;
-      const end = live.indexOf('`', start);
-      const body = live.slice(start, end);
-      const lines = body.split('\n');
-      const l2 = (lines[1] || '').slice(48, 63);
-      result += name + ' len=' + body.length + ' firstLine=' + JSON.stringify(lines[0]) + '\n';
-      result += '   l2[48..63] codepoints: ' + l2.split('').map(hexcp).join(' ') + '\n';
-      result += '   non-ascii chars: ' + [...body].filter(c => c.codePointAt(0) > 127).length + '\n';
-      result += await probe('v4_' + name, body);
-    }  }
+    // pipeline proof with the dialect-converted stars shader
+    const quad = [{ arrayStride: 8, attributes: [{ format: 'float32x2', offset: 0 }] }];
+    async function testPipeline(label, code) {
+      const before = uncaptured.length;
+      let mod;
+      try { device.pushErrorScope('validation'); mod = device.createShaderModule({ label: label + '_mod', code }); } catch (e2) { line(label + ': MOD-THROWS ' + e2); return; }
+      let err = null;
+      try { const scope = await device.popErrorScope(); if (scope) err = String(scope.message || scope); } catch (e3) {}
+      if (!err) { await sleep(150); if (uncaptured.length > before) err = uncaptured.slice(before).join(' | '); }
+      if (err) { line(label + ': MODULE INVALID — ' + err); return; }
+      try {
+        device.pushErrorScope('validation');
+        device.createRenderPipeline({ layout: 'auto', vertex: { module: mod, entryPoint: 'vs_main' }, fragment: { module: mod, entryPoint: 'fs_main', targets: [{ format: 'rgba8unorm' }] } });
+        const scopeP = await device.popErrorScope();
+        let perr = scopeP ? String(scopeP.message || scopeP) : null;
+        if (!perr) { await sleep(150); if (uncaptured.length > before) perr = uncaptured.slice(before).join(' | '); }
+        line(label + ': PIPE ' + (perr ? 'INVALID — ' + perr : 'OK'));
+      } catch (e2) { line(label + ': PIPE-THROWS ' + e2.message); }
+    }
+    await testPipeline('P_stars_comma', Sc);
+    // vertex-output-struct dialect form (pos first is fine only if separator fixed; test annotated struct w/ commas)
+    const vout = 'struct V { @builtin(position) pos: vec2<f32> }; @vertex fn vs_main() -> V { return V{vec2<f32>(0.0, 1.0)}; } @fragment fn fs_main() -> @location(0) vec4<f32> { return vec4<f32>(1.0); }';
+    await testModule('v_out_struct_comma', vout);
+    if (!anyOk) line('VERDICT: NO separator form accepted for struct fields');
+  }
+  line('ALL-TESTS-DONE');
 }
-document.getElementById('out').textContent = 'done:\n' + result;
-try { await fetch('/__result', { method: 'POST', body: document.getElementById('out').textContent }); } catch (e) {}
-
-</script></body></html
+main().catch((e) => { line('PROBE-ERROR ' + (e && e.message || e)); });
+const _t = setInterval(() => { if (result.includes('ALL-TESTS-DONE') || result.includes('NO navigator.gpu') || result.includes('PROBE-ERROR')) { clearInterval(_t); document.getElementById('out').textContent = 'done:\n' + result; } }, 200);
+</script></body></html>
