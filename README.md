@@ -62,3 +62,80 @@ src/renderer.js        # WebGPU device, pipelines, per-frame encoding
 src/main.js            # entry: support check, init order, RAF loop
 tools/smoke-test.mjs   # node smoke test over the pure modules
 ```
+
+## Story
+
+This started as the [3D solar system AI prompt](https://docsbot.ai/prompts/technical/3d-solar-system-html) I was using to test the results of different LLMs that can run on my hardware. Some models better than others but Qwen3.8-27B seemed to get the best results from my tests.
+
+
+
+
+## Models tested or to test:
+- ggml-org/Qwen2.5-Coder-1.5B-Q8_0-GGUF
+- google/gemma-4-26B-A4B-it
+- unsloth/DeepSeek-R1-Distill-Qwen-32B-GGUF
+- unsloth/Qwen3-VL-30B-A3B-Thinking-1M-GGUF
+- unsloth/Qwen3.5-0.8B-GGUF
+- unsloth/Qwen3.5-4B-MTP-GGUF
+- unsloth/Qwen3.6-35B-A3B-GGUF
+- unsloth/Qwen3.6-35B-A3B-MTP-GGUF
+- unsloth/Qwen3.8-27B-GGUF
+- unsloth/flint-GGUF
+- unsloth/orpheus-3b-0.1-ft
+
+
+#### Config
+- Thinking: Extra High
+- Context Length: 65536
+- t=1, top_p=0.95, top_k=20, min_p=0, repeat-penalty=1.05, presence-penalty=0.1
+
+#### Model & Hardware
+
+- Engine: Unsloth Studio
+- Model: unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL
+- RTX 4080 Super 16GB
+- NVIDIA GeForce RTX 4080 SUPER (16GB VRAM)
+- Processor	13th Gen Intel(R) Core(TM) i9-13900K
+
+## Token Count
+##### I did not capture most of the tokens used on this but I'll try to take samples
+
+Prompt eval
+230ms\
+Prompt speed
+187.1 tok/s\
+Generation
+7.82s\
+Speed
+43.9 tok/s\
+Tokens
+344\
+First token
+230ms\
+Cache hits
+45,063\
+Total
+9.18s\
+Chunks
+343
+
+
+#### 2026-10-25
+- 12:25PM\
+Tokens
+2,134,338\
+1,191,144 in · 943,194 out
+- 1:17PM\
+Tokens
+2,285,859\
+1,284,467 in · 1,001,392 out
+- 3:05PM\
+Tokens
+2,756,262\
+1,578,787 in · 1,177,475 out
+- 8:32PM\
+Tokens
+2,592,580\
+1,510,020 in · 1,082,560 out
+
+

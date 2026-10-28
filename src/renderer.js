@@ -24,20 +24,21 @@ const VISIBILITY_VERTEX_FRAGMENT = VISIBILITY_VERTEX | VISIBILITY_FRAGMENT;
 
 /* ============================ WGSL sources =========================== */
 
-/** Shared uniform layout preamble (JS writes a 128-float buffer; see renderFrame). */
-const GLOBAL_UNIFORMS_WGSL = `
-struct Occluder { center: vec3<f32>; radius: f32 };
+
+/** pBackgroundStars: fullscreen triangle; ndc → ray via camera basis + tan-fov. */
+const GLOBAL_UNIFORMS_WGSL =`
+struct Occluder { center: vec3<f32>, radius: f32 };
 struct GlobalUniforms {
-  cameraPosition: vec4<f32>;    // scene position, w = 1
-  timeSeconds: f32;             // animated sim seconds (twinkle / corona drift)
-  camForward: vec4<f32>;       // normalized scene axes from getCameraBasis()
-  camRight: vec4<f32>;
-  camUp: vec4<f32>;
-  occluderCount: f32;          // always 10 (slots 0..8 sun+planets, slot 9 pad)
-  occluders: array<Occluder, 16>;
-  coronaCenter: vec4<f32>;    // xyz scene, w = live Sun displayRadius
-  projectionParams: vec4<f32>;// x = tanX, y = tanY (from P), z aspect, w 0
-  viewProjection: mat4x4<f32>;   // P·V per frame (floats 96..111)
+  cameraPosition: vec4<f32>,    // scene position, w = 1
+  timeSeconds: f32,             // animated sim seconds (twinkle / corona drift)
+  camForward: vec4<f32>,       // normalized scene axes from getCameraBasis()
+  camRight: vec4<f32>,
+  camUp: vec4<f32>,
+  occluderCount: f32,          // always 10 (slots 0..8 sun+planets, slot 9 pad)
+  occluders: array<Occluder, 16>,
+  coronaCenter: vec4<f32>,    // xyz scene, w = live Sun displayRadius
+  projectionParams: vec4<f32>,// x = tanX, y = tanY (from P), z aspect, w 0
+  viewProjection: mat4x4<f32>,   // P·V per frame (floats 96..111)
 };
 
 /**
@@ -50,14 +51,14 @@ fn analyticShadowFactor(worldPos: vec3<f32>, selfIndex: f32, u: GlobalUniforms) 
   var factor: f32 = 1.0;
   let count = u32(u.occluderCount);
   for (var i: u32 = 0u; i < count; i = i + 1u) {
-    if (i == u32(selfIndex)) continue;              // body never self-occludes
+    if (i == u32(selfIndex)) { continue; }              // body never self-occludes
     let ocl = u.occluders[i];
     let toOcl = ocl.center - worldPos;
     let d = length(toOcl);
-    if (d >= lightDistance) continue;              // sun itself (==) / past the light
+    if (d >= lightDistance) { continue; }              // sun itself (==) / past the light
     let toLightDir = normalize(-worldPos);
     let sepCos = dot(toLightDir, normalize(toOcl));
-    if (sepCos <= 0.0) continue;                  // occluder behind this body
+    if (sepCos <= 0.0) { continue; }                  // occluder behind this body
     let s = ocl.radius / max(d, 0.001);
     if (sepCos >= sqrt(max(0.0, 1.0 - s * s))) { factor = 0.0; }
   }
@@ -67,14 +68,13 @@ fn analyticShadowFactor(worldPos: vec3<f32>, selfIndex: f32, u: GlobalUniforms) 
 fn starHash(c: vec3<f32>) -> f32 { let d = dot(c, vec3<f32>(127.1, 311.7, 74.7)); return fract(sin(d) * 43758.5453); }
 `;
 
-/** pBackgroundStars: fullscreen triangle; ndc → ray via camera basis + tan-fov. */
-const SHADER_BACKGROUND_STARS = `${GLOBAL_UNIFORMS_WGSL}
-struct VertexOut { @builtin(position) position: vec2<f32>; @location(0) ndcIn: vec2<f32>; };
+const SHADER_BACKGROUND_STARS =`${GLOBAL_UNIFORMS_WGSL}
+struct VertexOut { @builtin(position) position: vec4<f32>, @location(0) ndcIn: vec2<f32>, };
 @group(0) @binding(0) var<uniform> globalU: GlobalUniforms;
-@vertex fn vs_main(@location(0) inNdc: vec2<f32>) -> VertexOut { return VertexOut(inNdc, inNdc); }
+@vertex fn vs_main(@location(0) inNdc: vec2<f32>) -> VertexOut { return VertexOut(vec4<f32>(inNdc, 0.0, 1.0), inNdc); }
 @fragment fn fs_main(@location(0) ndcIn: vec2<f32>) -> @location(0) vec4<f32> {
   let g = globalU;
-  let dir = normalize(g.camForward + g.camRight * (ndcIn.x * g.projectionParams.x) + g.camUp * (ndcIn.y * g.projectionParams.y));
+  let dir = normalize(g.camForward.xyz + g.camRight.xyz * (ndcIn.x * g.projectionParams.x) + g.camUp.xyz * (ndcIn.y * g.projectionParams.y));
   var color = vec3<f32>(0.010, 0.016, 0.035);                          // deep-space base
   let bandN = normalize(vec3<f32>(0.42, 0.55, 0.72));                  // faint Milky Way band
   let t = abs(dot(dir, bandN));
@@ -96,27 +96,26 @@ struct VertexOut { @builtin(position) position: vec2<f32>; @location(0) ndcIn: v
 `;
 
 /** pOrbitLines: line strip, uniform = {model mat4x4, color vec4}. */
-const SHADER_ORBIT_LINES = `
-${GLOBAL_UNIFORMS_WGSL}
-struct OrbitLineUniforms { model: mat4x4<f32>; color: vec4<f32>; };
+const SHADER_ORBIT_LINES =`${GLOBAL_UNIFORMS_WGSL}
+struct OrbitLineUniforms { model: mat4x4<f32>, color: vec4<f32>, };
 @group(0) @binding(0) var<uniform> orbitU: OrbitLineUniforms;
 @group(0) @binding(1) var<uniform> globalU: GlobalUniforms;
-struct VertexOut { @builtin(position) position: vec4<f32>; @location(0) color: vec4<f32>; };
-@vertex fn vs_main(@builtin(position) position: vec3<f32>) -> VertexOut {
-  let world = orbitU.model * vec4<f32>(position, 1.0);
+struct VertexOut { @builtin(position) position: vec4<f32>, @location(0) color: vec4<f32>, };
+@vertex fn vs_main(@location(0) position: vec3<f32>) -> VertexOut {
+  let world = orbitU.model * vec4<f32>(position.xyz, 1.0);
   return VertexOut(globalU.viewProjection * world, orbitU.color);
 }
 @fragment fn fs_main(in: VertexOut) -> @location(0) vec4<f32> { return in.color; }
 `;
 
 /** pSphereLit: Lambert + analytic umbra; ambient 0.05 blue per §7.7. */
-const SHADER_SPHERE_LIT = `${GLOBAL_UNIFORMS_WGSL}
-struct BodyUniforms { model: mat4x4<f32>; radius: f32; selfOccluderIndex: f32; };
-@group(0) @binding(0) var<uniform> baseColorSampler: texture_2d<f32>;
-@group(0) @binding(1) var samplerBase: sampler;
+const SHADER_SPHERE_LIT =`${GLOBAL_UNIFORMS_WGSL}
+struct BodyUniforms { model: mat4x4<f32>, radius: f32, selfOccluderIndex: f32, };
+@group(0) @binding(0) var<texture_2d<f32>> baseColorSampler;
+@group(0) @binding(1) var<sampler> samplerBase;
 @group(0) @binding(2) var<uniform> bodyU: BodyUniforms;
 @group(0) @binding(3) var<uniform> globalU: GlobalUniforms;
-struct VertexOut { @builtin(position) position: vec4<f32>; @location(0) worldPos: vec3<f32>; @location(1) normal: vec3<f32>; @location(2) uv: vec2<f32>; };
+struct VertexOut { @builtin(position) position: vec4<f32>, @location(0) worldPos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) uv: vec2<f32>, };
 @vertex fn vs_main(@location(0) position: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) uv: vec2<f32>) -> VertexOut {
   let worldPos = (bodyU.model * vec4<f32>(position, 1.0)).xyz;
   let nWorld = normalize((bodyU.model * vec4<f32>(normal, 0.0)).xyz);
@@ -134,13 +133,13 @@ struct VertexOut { @builtin(position) position: vec4<f32>; @location(0) worldPos
 `;
 
 /** pSunEmissive: no shadow pass; rim boost per §7.4/§7.5 spec. */
-const SHADER_SUN_EMISSIVE = `${GLOBAL_UNIFORMS_WGSL}
-struct BodyUniforms { model: mat4x4<f32>; radius: f32; selfOccluderIndex: f32; };
-@group(0) @binding(0) var<uniform> baseColorSampler: texture_2d<f32>;
-@group(0) @binding(1) var samplerBase: sampler;
+const SHADER_SUN_EMISSIVE =`${GLOBAL_UNIFORMS_WGSL}
+struct BodyUniforms { model: mat4x4<f32>, radius: f32, selfOccluderIndex: f32, };
+@group(0) @binding(0) var<texture_2d<f32>> baseColorSampler;
+@group(0) @binding(1) var<sampler> samplerBase;
 @group(0) @binding(2) var<uniform> bodyU: BodyUniforms;
 @group(0) @binding(3) var<uniform> globalU: GlobalUniforms;
-struct VertexOut { @builtin(position) position: vec4<f32>; @location(0) worldPos: vec3<f32>; @location(1) normal: vec3<f32>; @location(2) uv: vec2<f32>; };
+struct VertexOut { @builtin(position) position: vec4<f32>, @location(0) worldPos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) uv: vec2<f32>, };
 @vertex fn vs_main(@location(0) position: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) uv: vec2<f32>) -> VertexOut {
   let worldPos = (bodyU.model * vec4<f32>(position, 1.0)).xyz;
   let nWorld = normalize((bodyU.model * vec4<f32>(normal, 0.0)).xyz);
@@ -156,13 +155,13 @@ struct VertexOut { @builtin(position) position: vec4<f32>; @location(0) worldPos
 `;
 
 /** pRings: two-sided (frontFacing flip), radial strip uv, alpha from canvas profile. */
-const SHADER_RINGS = `${GLOBAL_UNIFORMS_WGSL}
-struct BodyUniforms { model: mat4x4<f32>; radius: f32; selfOccluderIndex: f32; };
-@group(0) @binding(0) var<uniform> baseColorSampler: texture_2d<f32>;
-@group(0) @binding(1) var samplerBase: sampler;
+const SHADER_RINGS =`${GLOBAL_UNIFORMS_WGSL}
+struct BodyUniforms { model: mat4x4<f32>, radius: f32, selfOccluderIndex: f32, };
+@group(0) @binding(0) var<texture_2d<f32>> baseColorSampler;
+@group(0) @binding(1) var<sampler> samplerBase;
 @group(0) @binding(2) var<uniform> bodyU: BodyUniforms;
 @group(0) @binding(3) var<uniform> globalU: GlobalUniforms;
-struct VertexOut { @builtin(position) position: vec4<f32>; @location(0) worldPos: vec3<f32>; @location(1) normal: vec3<f32>; @location(2) uv: vec2<f32>; };
+struct VertexOut { @builtin(position) position: vec4<f32>, @location(0) worldPos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) uv: vec2<f32>, };
 @vertex fn vs_main(@location(0) position: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) uv: vec2<f32>) -> VertexOut {
   let worldPos = (bodyU.model * vec4<f32>(position, 1.0)).xyz;
   let nWorld = normalize((bodyU.model * vec4<f32>(normal, 0.0)).xyz);
@@ -180,11 +179,11 @@ struct VertexOut { @builtin(position) position: vec4<f32>; @location(0) worldPos
 `;
 
 /** pCoronaBillboard: camera quad, §7.7 size = displayRadius × 4; warm two-octave falloff. */
-const SHADER_CORONA = `${GLOBAL_UNIFORMS_WGSL}
-struct CoronaUniforms { viewProjection: mat4x4<f32>; };
+const SHADER_CORONA =`${GLOBAL_UNIFORMS_WGSL}
+struct CoronaUniforms { viewProjection: mat4x4<f32>, };
 @group(0) @binding(0) var<uniform> globalU: GlobalUniforms;
 @group(0) @binding(1) var<uniform> coronaU: CoronaUniforms;
-struct VertexOut { @builtin(position) position: vec4<f32>; @location(0) corner: vec2<f32>; };
+struct VertexOut { @builtin(position) position: vec4<f32>, @location(0) corner: vec2<f32>, };
 @vertex fn vs_main(@location(0) cornerIn: vec2<f32>) -> VertexOut {
   let scale = globalU.coronaCenter.w * 2.0;                        // half-extent = 2 × displayRadius
   let worldPos = globalU.coronaCenter.xyz + globalU.camRight.xyz * (cornerIn.x * scale) + globalU.camUp.xyz * (cornerIn.y * scale);
@@ -504,55 +503,57 @@ export class SolarSystemRenderer {
     const device = this.device;
     const alphaBlend = { color: { src: 'src-alpha', dst: 'one-minus-src-alpha' }, alpha: { src: 'one', dst: 'one-minus-src-alpha' } };
     const sphereLayout = [{ arrayStride: 32, attributes: [
-      { format: 'float32x3', offset: 0 }, { format: 'float32x3', offset: 12 }, { format: 'float32x2', offset: 24 },
+      { shaderLocation: 0, format: 'float32x3', offset: 0 }, { shaderLocation: 1, format: 'float32x3', offset: 12 }, { shaderLocation: 2, format: 'float32x2', offset: 24 },
     ] }];
-    const orbitLayout = [{ arrayStride: 12, attributes: [{ format: 'float32x3', offset: 0 }] }];
+    const orbitLayout = [{ arrayStride: 12, attributes: [{ shaderLocation: 0, format: 'float32x3', offset: 0 }] }];
     const ringLayout = [{ arrayStride: 20, attributes: [
-      { format: 'float32x3', offset: 0 }, { format: 'float32x2', offset: 12 },
+      { shaderLocation: 0, format: 'float32x3', offset: 0 }, { shaderLocation: 1, format: 'float32x2', offset: 12 },
     ] }];
-    const quadLayout = [{ arrayStride: 8, attributes: [{ format: 'float32x2', offset: 0 }] }];
+    const quadLayout = [{ arrayStride: 8, attributes: [{ shaderLocation: 0, format: 'float32x2', offset: 0 }] }];
     const module = (label, code) => device.createShaderModule({ label, code });
 
     this._pipelines = {
       pBackgroundStars: device.createRenderPipeline({
         layout: 'auto',
-        vertex: { module: module('pBackgroundStars', SHADER_BACKGROUND_STARS), buffers: [quadLayout], entryPoint: 'vs_main' },
-        fragment: { targets: [{ format: this._presentFormat }] },
+        vertex: { module: module('pBackgroundStars', SHADER_BACKGROUND_STARS), buffers: quadLayout, entryPoint: 'vs_main' },
+        fragment: { module: module('pBackgroundStars', SHADER_BACKGROUND_STARS), entryPoint: 'fs_main', targets: [{ format: this._presentFormat }] },
       }),
       pOrbitLines: device.createRenderPipeline({
         layout: 'auto',
-        vertex: { module: module('pOrbitLines', SHADER_ORBIT_LINES), buffers: [orbitLayout], entryPoint: 'vs_main' },
-        fragment: { targets: [{ format: this._presentFormat, blend: alphaBlend }] },
+        vertex: { module: module('pOrbitLines', SHADER_ORBIT_LINES), buffers: orbitLayout, entryPoint: 'vs_main' },
+        fragment: { module: module('pOrbitLines', SHADER_ORBIT_LINES), entryPoint: 'fs_main', targets: [{ format: this._presentFormat, blend: alphaBlend }] },
         primitive: { topology: 'line-list' },
-        depthStencil: { format: 'depth32float', comparison: 'less', writeMask: 0 },
+        depthStencil: { format: 'depth32float', comparison: 'less', depthWriteEnabled: false },
       }),
       pSphereLit: device.createRenderPipeline({
         layout: 'auto',
-        vertex: { module: module('pSphereLit', SHADER_SPHERE_LIT), buffers: [sphereLayout], entryPoint: 'vs_main' },
-        fragment: { targets: [{ format: this._presentFormat }] },
-        depthStencil: { format: 'depth32float', comparison: 'less' },
+        vertex: { module: module('pSphereLit', SHADER_SPHERE_LIT), buffers: sphereLayout, entryPoint: 'vs_main' },
+        fragment: { module: module('pSphereLit', SHADER_SPHERE_LIT), entryPoint: 'fs_main', targets: [{ format: this._presentFormat }] },
+        depthStencil: { format: 'depth32float', comparison: 'less', depthWriteEnabled: true },
       }),
       pSunEmissive: device.createRenderPipeline({
         layout: 'auto',
-        vertex: { module: module('pSunEmissive', SHADER_SUN_EMISSIVE), buffers: [sphereLayout], entryPoint: 'vs_main' },
-        fragment: { targets: [{ format: this._presentFormat }] },
-        depthStencil: { format: 'depth32float', comparison: 'less' },
+        vertex: { module: module('pSunEmissive', SHADER_SUN_EMISSIVE), buffers: sphereLayout, entryPoint: 'vs_main' },
+        fragment: { module: module('pSunEmissive', SHADER_SUN_EMISSIVE), entryPoint: 'fs_main', targets: [{ format: this._presentFormat }] },
+        depthStencil: { format: 'depth32float', comparison: 'less', depthWriteEnabled: true },
       }),
       pRings: device.createRenderPipeline({
         layout: 'auto',
-        vertex: { module: module('pRings', SHADER_RINGS), buffers: [ringLayout], entryPoint: 'vs_main' },
-        fragment: { targets: [{ format: this._presentFormat, blend: alphaBlend }] },
-        depthStencil: { format: 'depth32float', comparison: 'less', writeMask: 0 },
+        vertex: { module: module('pRings', SHADER_RINGS), buffers: ringLayout, entryPoint: 'vs_main' },
+        fragment: { module: module('pRings', SHADER_RINGS), entryPoint: 'fs_main', targets: [{ format: this._presentFormat, blend: alphaBlend }] },
+        depthStencil: { format: 'depth32float', comparison: 'less', depthWriteEnabled: false },
       }),
       pCoronaBillboard: device.createRenderPipeline({
         layout: 'auto',
-        vertex: { module: module('pCoronaBillboard', SHADER_CORONA), buffers: [quadLayout], entryPoint: 'vs_main' },
+        vertex: { module: module('pCoronaBillboard', SHADER_CORONA), buffers: quadLayout, entryPoint: 'vs_main' },
         fragment: {
+          module: module('pCoronaBillboard', SHADER_CORONA),
+          entryPoint: 'fs_main',
           targets: [{ format: this._presentFormat, blend: {
             color: { src: 'one', dst: 'one' }, alpha: { src: 'one', dst: 'one' },
           } }],
         },
-        depthStencil: { format: 'depth32float', comparison: 'less', writeMask: 0 },
+        depthStencil: { format: 'depth32float', comparison: 'less', depthWriteEnabled: false },
       }),
     };
   }
